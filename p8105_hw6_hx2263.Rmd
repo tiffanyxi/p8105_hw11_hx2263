@@ -56,8 +56,6 @@ baltimore_OR_CI =
          conf_lower = exp(estimate - 1.96 * std.error),
          conf_upper = exp(estimate + 1.96 * std.error)) %>% 
   select(term, OR, conf_lower, conf_upper)
-  
-
 ```
 
 ### glm for each cities
@@ -97,5 +95,33 @@ eachcity_log %>%
       ) +
     theme_bw() +
     theme(axis.text = element_text(size = 8))
+```
+
+# Problem 2
+
+### Load and clean the data
+
+```{r message=FALSE}
+raw_birthweight = read_csv(file = "./data/birthweight.csv")
+
+birthweight_tidy = 
+  raw_birthweight %>% 
+  janitor::clean_names() %>% 
+  mutate(babysex = as.factor(babysex),
+         frace = as.factor(frace),
+         frace = recode_factor(frace, `1` = 'White', `2` = 'Black', 
+                               `3` = 'Asian', `4` = 'Puerto Rican', 
+                               `8` = 'Other', `9` = 'Unknown'),
+         malform = as.factor(malform),
+         mrace = as.factor(mrace),
+         mrace = recode_factor(mrace, `1` = 'White', `2` = 'Black',
+                               `3` = 'Asian', `4` = 'Puerto Rican',
+                               `8` = 'Other')) %>% 
+  select(bwt, everything()) 
+
+# check for missing data
+map(birthweight_tidy, ~sum(is.na(.)))
+
+str(birthweight_tidy)
 ```
 
