@@ -7,4 +7,27 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+theme_set(theme_bw() + theme(legend.position = "bottom") + theme(plot.title = element_text(hjust = 0.5)))
 ```
+
+# Problem 1
+
+### Import data
+
+```{r data_import}
+raw_homicide = read.csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv")
+```
+
+### Data tidy
+
+Create a city_state variable and a binary variable indicating whether the homicide is solved; omit cities as required.
+```{r}
+homicide_tidy = 
+  raw_homicide %>% 
+  mutate(city_state = str_c(city, ", ", state)) %>% 
+  mutate(status = as.numeric(disposition == "Closed by arrest")) %>% 
+  filter(!(city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL")))
+```
+
+
