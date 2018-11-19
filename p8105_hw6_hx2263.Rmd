@@ -8,6 +8,7 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(modelr)
 theme_set(theme_bw() + theme(legend.position = "bottom") + theme(plot.title = element_text(hjust = 0.5)))
 ```
 
@@ -101,7 +102,7 @@ eachcity_log %>%
 
 ### Load and clean the data
 
-```{r message=FALSE}
+```{r message = FALSE, cache = TRUE}
 raw_birthweight = read_csv(file = "./data/birthweight.csv")
 
 birthweight_tidy = 
@@ -122,6 +123,67 @@ birthweight_tidy =
 # check for missing data
 map(birthweight_tidy, ~sum(is.na(.)))
 
-str(birthweight_tidy)
+skimr::skim(birthweight_tidy)
+
+birthweight_tidy %>% 
+  select(-babysex, -frace, -mrace, -malform, -pnumlbw, -pnumsga, -parity) %>% 
+  select(bwt, bhead, blength, delwt, fincome, gaweeks, menarche) %>% 
+  plot()
+
+birthweight_tidy %>% 
+  select(bwt, mheight, momage, ppbmi, ppwt, smoken, wtgain) %>% 
+  plot()
+
 ```
 
+Propose a regression model for birthweight.
+
+I 
+```{r}
+model_my = lm(bwt ~ bhead + blength + ppbmi + wtgain, data = birthweight_tidy)
+summary(model_my)
+```
+
+### plot of model residuals against fitted values
+
+```{r}
+birthweight_tidy %>% 
+  add_predictions(model_my) %>% 
+  add_residuals(model_my) %>% 
+  ggplot(aes(x = pred, y = resid)) +
+  geom_point(alpha = 0.25)
+```
+
+
+
+
+Compare your model to two others:
+
+One using length at birth and gestational age as predictors (main effects only)
+
+```{r}
+model_1 = lm(bwt ~ blength + gaweeks, data = birthweight_tidy)
+summary(model_1)
+```
+
+One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
+
+```{r}
+model_2 = lm(bwt ~ bhead + blength + babysex + bhead*blength + blength*babysex +  bhead*babysex + bhead*blength*babysex, data = birthweight_tidy)
+summary(model_2)
+```
+
+
+cv_df = 
+  cv_df %>% 
+  mutate(model_my = map(train, ~lm(y ~ x, data = .x)),
+         model_1  = map(train, ~mgcv::gam(y ~ s(x), data = .x)),
+         model_2  = map(train, ~gam(y ~ s(x, k = 30), sp = 10e-6, data = .x))) %>% 
+  mutate(rmse_lin    = map2_dbl(lin_mod, test, ~rmse(model = .x, data = .y)),
+         rmse_nonlin = map2_dbl(nonlin_mod, test, ~rmse(model = .x, data = .y)),
+         rmse_wiggly = map2_dbl(wiggly_mod, test, ~rmse(model = .x, data = .y))) %>% 
+  select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
