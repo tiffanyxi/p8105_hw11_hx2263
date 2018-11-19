@@ -1,0 +1,10 @@
+---
+title: "p8105_hw6_hx2263"
+author: "Tiffany Xi"
+date: "11/19/2018"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
