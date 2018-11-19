@@ -34,7 +34,7 @@ homicide_tidy =
          victim_age = as.numeric(victim_age))
 ```
 
-### Baltimore, MD
+### glm in Baltimore, MD
 Use `glm` to fit a logistic regression with resolved vs unresolved as the outcome and victim age, sex and race as predictors
 
 ```{r}
@@ -60,10 +60,10 @@ baltimore_OR_CI =
 
 ```
 
-For each cities
+### glm for each cities
 Run glm for each cities, and extract the adjusted odds ratio (and CI) for solving homicides comparing black victims to white victims.
 
-```{r}
+```{r each_city}
 eachcity_log = 
   homicide_tidy %>% 
   group_by(city_state) %>% 
@@ -80,5 +80,22 @@ eachcity_log =
   select(city_state, OR, conf_lower, conf_upper)
 ```
 
+### Visualization 
 
+```{r plot}
+eachcity_log %>%
+  ggplot(aes(x = reorder(city_state, OR), y = OR)) +
+  coord_flip() + 
+  geom_point(size = 1.5, shape = 18, fill = "white") +
+  geom_errorbar(mapping = aes(ymin = conf_lower, ymax = conf_upper)) +
+  geom_hline(yintercept = 1, alpha = 0.4, color = "red") +
+  labs(
+        title = "Estimates OR and CIs for Each City",
+        x = "City State",
+        y = "Estimate Odd Ratio and CI",
+        caption = "Data from the github package"
+      ) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 8))
+```
 
