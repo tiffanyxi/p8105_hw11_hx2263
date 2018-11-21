@@ -65,7 +65,7 @@ baltimore_OR_CI =
 baltimore_OR_CI
 ```
 
-*Comment*:
+**Comment**:
 According to the result of linear regression model, the adjusted odds ratio of solved homicides in Baltimore, MD which the victim race is non-white is 0.441 times the adjusted odds ratio of solved homicides when the victim race is white. 95% CI is between 0.312 and 0.62.
 
 ### glm for each cities
@@ -108,7 +108,7 @@ eachcity_log %>%
     theme(axis.text = element_text(size = 8))
 ```
 
-*Comment*
+**Comment**:
 According to the plot above, we can see that the adjusted OR in most cities (44 out of 47) of solving homicides comparing non-white to white victims is less than 1, which means in most cities, homicides with non-white victim are less likely to be solved than those with white victims. Also, cities with higher OR estimate tend to have wider confidence interval. This indicates the estimate in cities like `Tampa, FL`, `Durham, NC` are less precise than `Boston, MA`, `Omaha, NE`. 
 
 # Problem 2
