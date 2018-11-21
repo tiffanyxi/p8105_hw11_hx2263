@@ -16,17 +16,16 @@ theme_set(theme_bw() + theme(legend.position = "bottom") + theme(plot.title = el
 
 ### Import data
 
-```{r data_import}
-raw_homicide = read.csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv")
+```{r data_import, message=FALSE}
+raw_homicide = read_csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv")
 ```
 
 ### Data tidy
 
-Create a `city_state` variable and a binary variable indicating whether the homicide is solved; omit cities as required; modifiy `victim_race` to have categories white and non-white, with white as the reference category; victim_age is numeric.
-
-```{r}
+```{r warning=FALSE}
 homicide_tidy = 
   raw_homicide %>% 
+  janitor::clean_names() %>%
   mutate(city_state = str_c(city, ", ", state)) %>% 
   mutate(status = as.numeric(disposition == "Closed by arrest")) %>% 
   filter(!(city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL"))) %>%
@@ -35,8 +34,11 @@ homicide_tidy =
          victim_age = as.numeric(victim_age))
 ```
 
+After data cleaning, the tidy dataset consists `r nrow(homicide_tidy)` rows by `r ncol(homicide_tidy)` columns.
+
 ### glm in Baltimore, MD
-Use `glm` to fit a logistic regression with resolved vs unresolved as the outcome and victim age, sex and race as predictors
+
+Logistic regression with resolved vs unresolved as the outcome and victim age, sex and race as predictors
 
 ```{r}
 baltimore_log = 
@@ -47,36 +49,45 @@ baltimore_log =
 baltimore_log %>% broom::tidy()
 ```
 
-Obtain the estimate and confidence interval of the adjusted odds ratio for solving homicides comparing black victims to white victims keeping all other variables fixed.
+the estimate and CI of the **adjusted odds ratio** for solving homicides comparing non-white victims to white victims keeping all other variables fixed
 
 ```{r}
 baltimore_OR_CI = 
   baltimore_log %>% 
-  broom::tidy() %>% 
+  broom::tidy(conf.int = TRUE) %>% 
   mutate(OR = exp(estimate),
-         conf_lower = exp(estimate - 1.96 * std.error),
-         conf_upper = exp(estimate + 1.96 * std.error)) %>% 
-  select(term, OR, conf_lower, conf_upper)
+         conf_lower = exp(conf.low),
+         conf_upper = exp(conf.high)) %>% 
+  select(term, OR, conf_lower, conf_upper) %>% 
+  filter(term == "victim_racenon-white") %>%
+  knitr::kable(digits = 3)
+
+baltimore_OR_CI
 ```
 
-### glm for each cities
-Run glm for each cities, and extract the adjusted odds ratio (and CI) for solving homicides comparing black victims to white victims.
+*Comment*:
+According to the result of linear regression model, the adjusted odds ratio of solved homicides in Baltimore, MD which the victim race is non-white is 0.441 times the adjusted odds ratio of solved homicides when the victim race is white. 95% CI is between 0.312 and 0.62.
 
-```{r each_city}
+### glm for each cities
+
+```{r each_city, warning = FALSE}
 eachcity_log = 
   homicide_tidy %>% 
   group_by(city_state) %>% 
   nest() %>% 
   mutate(models = map(data, ~glm(status ~ victim_age + victim_sex + victim_race,
                                    data = ., family = binomial())),
+         model_ci = map(models, broom::confint_tidy),
          models = map(models, broom::tidy)) %>% 
   select(-data) %>% 
   unnest() %>% 
   filter(term == "victim_racenon-white") %>% 
   mutate(OR = round(exp(estimate), 3),
-         conf_lower = round(exp(estimate - 1.96 * std.error), 3),
-         conf_upper = round(exp(estimate + 1.96 * std.error), 3)) %>% 
+         conf_lower = round(exp(conf.low), 3),
+         conf_upper = round(exp(conf.high), 3)) %>% 
   select(city_state, OR, conf_lower, conf_upper)
+
+head(eachcity_log)
 ```
 
 ### Visualization 
@@ -94,9 +105,11 @@ eachcity_log %>%
         y = "Estimate Odd Ratio and CI",
         caption = "Data from the github package"
       ) +
-    theme_bw() +
     theme(axis.text = element_text(size = 8))
 ```
+
+*Comment*
+According to the plot above, we can see that the adjusted OR in most cities (44 out of 47) of solving homicides comparing non-white to white victims is less than 1, which means in most cities, homicides with non-white victim are less likely to be solved than those with white victims. Also, cities with higher OR estimate tend to have wider confidence interval. This indicates the estimate in cities like `Tampa, FL`, `Durham, NC` are less precise than `Boston, MA`, `Omaha, NE`. 
 
 # Problem 2
 
