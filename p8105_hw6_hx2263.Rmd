@@ -9,6 +9,7 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(modelr)
+library("leaps")
 theme_set(theme_bw() + theme(legend.position = "bottom") + theme(plot.title = element_text(hjust = 0.5)))
 ```
 
@@ -100,9 +101,10 @@ eachcity_log %>%
   geom_errorbar(mapping = aes(ymin = conf_lower, ymax = conf_upper)) +
   geom_hline(yintercept = 1, alpha = 0.4, color = "red") +
   labs(
-        title = "Estimates OR and CIs for Each City",
+        title = "Estimated OR and CIs for Each City",
+        subtitle = "for solving homicides comparing non-white vs white victims",
         x = "City State",
-        y = "Estimate Odd Ratio and CI",
+        y = "Estimated Odd Ratio and CI",
         caption = "Data from the github package"
       ) +
     theme(axis.text = element_text(size = 8))
@@ -121,12 +123,12 @@ raw_birthweight = read_csv(file = "./data/birthweight.csv")
 birthweight_tidy = 
   raw_birthweight %>% 
   janitor::clean_names() %>% 
-  mutate(babysex = as.factor(babysex),
+  mutate(babysex = as.factor(ifelse(babysex == 1, "Male", "Female")),
          frace = as.factor(frace),
          frace = recode_factor(frace, `1` = 'White', `2` = 'Black', 
                                `3` = 'Asian', `4` = 'Puerto Rican', 
                                `8` = 'Other', `9` = 'Unknown'),
-         malform = as.factor(malform),
+         malform = as.factor(ifelse(malform == 1, "present", "absent")),
          mrace = as.factor(mrace),
          mrace = recode_factor(mrace, `1` = 'White', `2` = 'Black',
                                `3` = 'Asian', `4` = 'Puerto Rican',
@@ -134,26 +136,28 @@ birthweight_tidy =
   select(bwt, everything()) 
 
 # check for missing data
-map(birthweight_tidy, ~sum(is.na(.)))
-
-skimr::skim(birthweight_tidy)
-
-birthweight_tidy %>% 
-  select(-babysex, -frace, -mrace, -malform, -pnumlbw, -pnumsga, -parity) %>% 
-  select(bwt, bhead, blength, delwt, fincome, gaweeks, menarche) %>% 
-  plot()
-
-birthweight_tidy %>% 
-  select(bwt, mheight, momage, ppbmi, ppwt, smoken, wtgain) %>% 
-  plot()
-
+sum(is.na(birthweight_tidy))
 ```
+
+
+```{r corr}
+cor(birthweight_tidy %>% select(-babysex, -frace, -mrace, -malform, -pnumlbw, -pnumsga, -parity))
+```
+
+According to the correlation results, `bhead` and `blength` are highly related with `bwt`
+
 
 Propose a regression model for birthweight.
 
-I 
-```{r}
-model_my = lm(bwt ~ bhead + blength + ppbmi + wtgain, data = birthweight_tidy)
+### Apply **Stepwise Elimination**--data-driven model-building process
+
+```{r stepwise}
+mult.fit <- lm(bwt ~ ., data = birthweight_tidy)
+step(mult.fit, direction='backward')
+
+model_my = lm(bwt ~ babysex + bhead + blength + delwt + fincome + gaweeks 
+           + mheight + mrace + parity + ppwt + smoken, data = birthweight_tidy)
+
 summary(model_my)
 ```
 
@@ -164,13 +168,16 @@ birthweight_tidy %>%
   add_predictions(model_my) %>% 
   add_residuals(model_my) %>% 
   ggplot(aes(x = pred, y = resid)) +
-  geom_point(alpha = 0.25)
+  geom_point(alpha = 0.25) +
+  labs(
+        title = "Plot of Model Residuals VS Fitted Values",
+        x = "Predictions",
+        y = "Residuals",
+        caption = "Data from the github package"
+      ) 
 ```
 
-
-
-
-Compare your model to two others:
+Compare my model to two others:
 
 One using length at birth and gestational age as predictors (main effects only)
 
@@ -179,12 +186,23 @@ model_1 = lm(bwt ~ blength + gaweeks, data = birthweight_tidy)
 summary(model_1)
 ```
 
-One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
+One using head circumference, length, sex, and all interactions (including the three-way interaction)
 
 ```{r}
 model_2 = lm(bwt ~ bhead + blength + babysex + bhead*blength + blength*babysex +  bhead*babysex + bhead*blength*babysex, data = birthweight_tidy)
 summary(model_2)
 ```
+
+Make this comparison in terms of the cross-validated prediction error; 
+use `crossv_mc` and functions in `purrr` as appropriate.
+
+```{r}
+cv_df =
+  crossv_mc(birthweight_tidy, 1000) %>% 
+  mutate(train = map(train, as_tibble),
+         test = map(test, as_tibble))
+```
+
 
 
 cv_df = 
