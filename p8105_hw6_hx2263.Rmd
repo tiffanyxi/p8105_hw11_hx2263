@@ -200,21 +200,26 @@ use `crossv_mc` and functions in `purrr` as appropriate.
 cv_df =
   crossv_mc(birthweight_tidy, 1000) %>% 
   mutate(train = map(train, as_tibble),
-         test = map(test, as_tibble))
-```
+         test = map(test, as_tibble)) %>% 
+  mutate(model_my = map(train, ~lm(bwt ~ babysex + bhead + blength + delwt 
+                                   + fincome + gaweeks + mheight + mrace 
+                                   + parity + ppwt + smoken, data = .x)),
+         model_1  = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+         model_2  = map(train, ~lm(bwt ~ bhead + blength + babysex 
+                                   + bhead*blength + blength*babysex + bhead*babysex 
+                                   + bhead*blength*babysex, data = .x))) %>% 
+  mutate(rmse_my= map2_dbl(model_my,test, ~rmse(model = .x, data = .y)),
+         rmse_1 = map2_dbl(model_1, test, ~rmse(model = .x, data = .y)),
+         rmse_2 = map2_dbl(model_2, test, ~rmse(model = .x, data = .y)))
 
-
-
-cv_df = 
-  cv_df %>% 
-  mutate(model_my = map(train, ~lm(y ~ x, data = .x)),
-         model_1  = map(train, ~mgcv::gam(y ~ s(x), data = .x)),
-         model_2  = map(train, ~gam(y ~ s(x, k = 30), sp = 10e-6, data = .x))) %>% 
-  mutate(rmse_lin    = map2_dbl(lin_mod, test, ~rmse(model = .x, data = .y)),
-         rmse_nonlin = map2_dbl(nonlin_mod, test, ~rmse(model = .x, data = .y)),
-         rmse_wiggly = map2_dbl(wiggly_mod, test, ~rmse(model = .x, data = .y))) %>% 
+cv_df %>% 
   select(starts_with("rmse")) %>% 
   gather(key = model, value = rmse) %>% 
   mutate(model = str_replace(model, "rmse_", ""),
          model = fct_inorder(model)) %>% 
-  ggplot(aes(x = model, y = rmse)) + geom_violin()
+  ggplot(aes(x = model, y = rmse)) + 
+  geom_violin(fill = "gold")
+```
+
+**Comment**:
+I focused on RMSE to compare three models, and the plot above shows the distribution of RMSE values for each candidate model. Based on these results, there’s clearly some improvement in predictive accuracy gained by using my model, model 1 is the worst for its highest RMSE.
