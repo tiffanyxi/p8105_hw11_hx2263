@@ -93,7 +93,7 @@ head(eachcity_log)
 
 ### Visualization 
 
-```{r plot}
+```{r plot, fig.width = 10, fig.height = 8}
 eachcity_log %>%
   ggplot(aes(x = reorder(city_state, OR), y = OR)) +
   coord_flip() + 
@@ -141,7 +141,7 @@ sum(is.na(birthweight_tidy))
 
 
 ```{r corr}
-cor(birthweight_tidy %>% select(-babysex, -frace, -mrace, -malform, -pnumlbw, -pnumsga, -parity))
+cor(birthweight_tidy %>% select(-babysex, -frace, -mrace, -malform, -pnumlbw, -pnumsga, -parity))[,1]
 ```
 
 According to the correlation results, `bhead` and `blength` are highly related with `bwt`
@@ -163,7 +163,7 @@ summary(model_my)
 
 ### plot of model residuals against fitted values
 
-```{r}
+```{r fig.width = 10, fig.height = 8}
 birthweight_tidy %>% 
   add_predictions(model_my) %>% 
   add_residuals(model_my) %>% 
@@ -177,7 +177,11 @@ birthweight_tidy %>%
       ) 
 ```
 
-Compare my model to two others:
+**Comment**:
+Residual values bounce around 0, which is as expected. Residuals form a horizontal ‘band’ around zero: above and below. But not in random pattern, not evenly distributed around 0.
+
+
+### Compare with two other model
 
 One using length at birth and gestational age as predictors (main effects only)
 
@@ -193,10 +197,9 @@ model_2 = lm(bwt ~ bhead + blength + babysex + bhead*blength + blength*babysex +
 summary(model_2)
 ```
 
-Make this comparison in terms of the cross-validated prediction error; 
-use `crossv_mc` and functions in `purrr` as appropriate.
+### Comparing based on cross-validated prediction error
 
-```{r}
+```{r warning=FALSE}
 cv_df =
   crossv_mc(birthweight_tidy, 1000) %>% 
   mutate(train = map(train, as_tibble),
@@ -222,4 +225,5 @@ cv_df %>%
 ```
 
 **Comment**:
+
 I focused on RMSE to compare three models, and the plot above shows the distribution of RMSE values for each candidate model. Based on these results, there’s clearly some improvement in predictive accuracy gained by using my model, model 1 is the worst for its highest RMSE.
